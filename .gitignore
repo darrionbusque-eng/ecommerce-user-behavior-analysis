@@ -1,0 +1,6 @@
+data/*.csv
+output/charts/*.png
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
