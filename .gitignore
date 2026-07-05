@@ -1,5 +1,4 @@
-data/*.csv
-output/charts/*.png
+data/UserBehavior.csv
 __pycache__/
 *.pyc
 .venv/
