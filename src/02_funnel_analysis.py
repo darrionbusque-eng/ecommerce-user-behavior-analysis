@@ -23,34 +23,41 @@ from utils import load_user_behavior, save_chart, COLORS, BEHAVIOR_CN, FUNNEL_CO
 
 
 def conversion_funnel(df):
-    """转化漏斗分析"""
+    """转化漏斗分析
+
+    采用独立计数法：每个阶段统计完成该行为的独立用户数，
+    不要求用户必须完成前面所有行为。
+    这与真实电商分析一致——真实数据中 30.5% 的购买无需事先浏览。
+    """
     print("=" * 60)
     print("转化漏斗分析")
     print("=" * 60)
 
-    # 严格漏斗：每个阶段必须完成前面所有行为
-    # 例如：购买 = 浏览且收藏且加购且购买的用户
-    funnel_data = []
+    # 独立计数：每个阶段统计有该行为的独立用户数
     behavior_order = ["pv", "fav", "cart", "buy"]
-
-    users_so_far = set(df["user_id"].unique())
+    funnel_data = []
     for btype in behavior_order:
-        users_with_behavior = set(df[df["behavior_type"] == btype]["user_id"].unique())
-        users_so_far = users_so_far & users_with_behavior
-        funnel_data.append({"behavior": btype, "cn": BEHAVIOR_CN[btype], "users": len(users_so_far)})
+        users = df[df["behavior_type"] == btype]["user_id"].nunique()
+        funnel_data.append({"behavior": btype, "cn": BEHAVIOR_CN[btype], "users": users})
 
     funnel_df = pd.DataFrame(funnel_data)
 
-    # 计算转化率
-    funnel_df["conv_rate"] = funnel_df["users"] / funnel_df["users"].iloc[0] * 100
+    # 整体转化率 = 购买用户数 / 浏览用户数
+    pv_users = funnel_df.loc[funnel_df["behavior"] == "pv", "users"].values[0]
+    buy_users = funnel_df.loc[funnel_df["behavior"] == "buy", "users"].values[0]
+    overall_conv = buy_users / pv_users * 100 if pv_users > 0 else 0
+
+    # 各环节转化率 (相对于浏览用户数)
+    funnel_df["conv_rate"] = funnel_df["users"] / pv_users * 100
+    # 步骤转化率 (相对于上一阶段)
     funnel_df["step_rate"] = funnel_df["users"] / funnel_df["users"].shift(1) * 100
     funnel_df["step_rate"] = funnel_df["step_rate"].fillna(100)
 
     print(funnel_df.to_string(index=False))
     print()
-
-    overall_conv = funnel_df.loc[funnel_df["behavior"] == "buy", "conv_rate"].values[0]
     print(f"整体转化率（浏览→购买）: {overall_conv:.2f}%")
+    print(f"  浏览用户: {pv_users:,}")
+    print(f"  购买用户: {buy_users:,}")
     print()
 
     # 绘制漏斗图
